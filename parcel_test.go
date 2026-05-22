@@ -2,7 +2,6 @@ package main
 
 import (
 	"database/sql"
-	"log"
 	"math/rand"
 	"testing"
 	"time"
@@ -34,9 +33,7 @@ func TestAddGetDelete(t *testing.T) {
 	// prepare
 	// настройте подключение к БД
 	db, err := sql.Open("sqlite", "tracker.db")
-	if err != nil { // Если БД не подключается -
-		log.Fatal(err) // в лог, и конец.
-	}
+	require.NoError(t, err, "Ошибка подключения к БД: %v", err)
 	defer db.Close()
 
 	store := NewParcelStore(db)
@@ -64,8 +61,6 @@ func TestAddGetDelete(t *testing.T) {
 	require.NoError(t, err, "Ошибка функции Delete() в функции TestAddGetDelete(): %v", err)
 	// пытаемся получить удалённую посылку
 	_, err = store.Get(id)
-	// проверяем, что вернулась ошибка
-	require.Error(t, err, "Функция Get() (в проверке функции Delete()) в функции TestAddGetDelete() должна была вернуть ошибку")
 	// проверяем, что вернулась ошибка sql.ErrNoRows
 	require.ErrorIs(t, err, sql.ErrNoRows, `Функция Get() (в проверке функции Delete()) в функции TestAddGetDelete() 
 		должна была вернуть ошибку sql.ErrNoRows, а не %v`, err)
@@ -76,9 +71,7 @@ func TestSetAddress(t *testing.T) {
 	// prepare
 	// настройте подключение к БД
 	db, err := sql.Open("sqlite", "tracker.db")
-	if err != nil { // Если БД не подключается -
-		log.Fatal(err) // в лог, и конец.
-	}
+	require.NoError(t, err, "Ошибка подключения к БД: %v", err)
 	defer db.Close()
 
 	store := NewParcelStore(db)
@@ -109,9 +102,7 @@ func TestSetStatus(t *testing.T) {
 	// prepare
 	// настройте подключение к БД
 	db, err := sql.Open("sqlite", "tracker.db")
-	if err != nil { // Если БД не подключается -
-		log.Fatal(err) // в лог, и конец.
-	}
+	require.NoError(t, err, "Ошибка подключения к БД: %v", err)
 	defer db.Close()
 
 	store := NewParcelStore(db)
@@ -142,9 +133,7 @@ func TestGetByClient(t *testing.T) {
 	// prepare
 	// настройте подключение к БД
 	db, err := sql.Open("sqlite", "tracker.db")
-	if err != nil { // Если БД не подключается -
-		log.Fatal(err) // в лог, и конец.
-	}
+	require.NoError(t, err, "Ошибка подключения к БД: %v", err)
 	defer db.Close()
 
 	store := NewParcelStore(db)

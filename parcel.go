@@ -2,7 +2,7 @@ package main
 
 import (
 	"database/sql"
-	"errors"
+	"log"
 )
 
 type ParcelStore struct {
@@ -26,13 +26,13 @@ func (s ParcelStore) Add(p Parcel) (int, error) {
 		return 0, err
 	}
 
-	number, err := res.LastInsertId() // получаем идентификатор последней добавленной строки
-	if err != nil {                   // если ошибка получения идентификатора
+	id, err := res.LastInsertId() // получаем идентификатор последней добавленной строки
+	if err != nil {               // если ошибка получения идентификатора
 		return 0, err
 	}
 
 	// верните идентификатор последней добавленной записи
-	return int(number), nil // number имеет тип int64, преобразуем (а что делать, если не влезет по битам?)
+	return int(id), nil // id имеет тип int64, преобразуем (а что делать, если не влезет по битам?)
 }
 
 func (s ParcelStore) Get(number int) (Parcel, error) {
@@ -42,7 +42,8 @@ func (s ParcelStore) Get(number int) (Parcel, error) {
 	// заполните объект Parcel данными из таблицы
 	p := Parcel{}
 
-	row := s.db.QueryRow("SELECT number, client, status, address, created_at FROM parcel WHERE number = :number", sql.Named("number", number))
+	row := s.db.QueryRow(`SELECT number, client, status, address, created_at FROM parcel
+		WHERE number = :id`, sql.Named("id", number))
 	err := row.Scan(&p.Number, &p.Client, &p.Status, &p.Address, &p.CreatedAt) // напихиваем считанное в поля p
 	if err != nil {                                                            // Если ошибка считывания результата запроса -
 		return Parcel{}, err // возвращаем пустой Parcel и ошибку.
@@ -76,6 +77,12 @@ func (s ParcelStore) GetByClient(client int) ([]Parcel, error) {
 		res = append(res, p) // пихаем посылку в слайс посылок
 	}
 
+	// проверяем ошибку, которая может возникнуть при итерации по строкам, но не прервать цикл
+	err = rows.Err()
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	return res, nil
 }
 
@@ -84,10 +91,10 @@ func (s ParcelStore) SetStatus(number int, status string) error {
 	// Вопрос: какая функция должна определять, что обновление статуса возможно - эта или внешняя?
 	// Будем считать, что внешняя.-)
 
-	_, err := s.db.Exec("UPDATE parcel SET status = :status WHERE number = :number",
+	_, err := s.db.Exec("UPDATE parcel SET status = :status WHERE number = :id",
 		sql.Named("status", status),
-		sql.Named("number", number))
-	if err != nil { // если ошибка обновления
+		sql.Named("id", number))
+	if err != nil { // если ошибка обновления статуса
 		return err
 	}
 
@@ -97,26 +104,12 @@ func (s ParcelStore) SetStatus(number int, status string) error {
 func (s ParcelStore) SetAddress(number int, address string) error {
 	// реализуйте обновление адреса в таблице parcel
 	// менять адрес можно только если значение статуса registered
-
-	// получаем статус (для проверки на registered)
-	var status string
-
-	row := s.db.QueryRow("SELECT status FROM parcel WHERE number = :number", sql.Named("number", number))
-	err := row.Scan(&status)
-	if err != nil { // Если ошибка считывания статуса -
-		return err // возвращаем ошибку. Надо ли ошибку обернуть (для большей понятности)?
-	}
-
-	if status != ParcelStatusRegistered { // Если статус не равен "registered" -
-		return errors.New("адрес не изменён, т.к. статус не \"registered\"!") // возвращаем ошибку.
-	}
-
-	// обновляем адрес
-	_, err = s.db.Exec("UPDATE parcel SET address = :address WHERE number = :number",
+	_, err := s.db.Exec("UPDATE parcel SET address = :address WHERE number = :id AND status = :status",
 		sql.Named("address", address),
-		sql.Named("number", number))
-	if err != nil { // Если ошибка обновления адреса -
-		return err // возвращаем её. Надо ли ошибку обернуть (для большей понятности)?
+		sql.Named("id", number),
+		sql.Named("status", ParcelStatusRegistered))
+	if err != nil { // если ошибка обновления адреса
+		return err
 	}
 
 	return nil
@@ -125,22 +118,12 @@ func (s ParcelStore) SetAddress(number int, address string) error {
 func (s ParcelStore) Delete(number int) error {
 	// реализуйте удаление строки из таблицы parcel
 	// удалять строку можно только если значение статуса registered
-
-	// получаем статус (для проверки на registered)
-	var status string
-
-	row := s.db.QueryRow("SELECT status FROM parcel WHERE number = :number", sql.Named("number", number))
-	err := row.Scan(&status)
-	if err != nil { // Если ошибка считывания статуса -
-		return err // возвращаем ошибку. Надо ли ошибку обернуть (для большей понятности)?
+	_, err := s.db.Exec("DELETE FROM parcel WHERE number = :id AND status = :status",
+		sql.Named("id", number),
+		sql.Named("status", ParcelStatusRegistered))
+	if err != nil { // если ошибка удаления строки
+		return err
 	}
 
-	// удаляем строку
-	if status == ParcelStatusRegistered { // если статус "registered" - можно удалять
-		_, err = s.db.Exec("DELETE FROM parcel WHERE number = :number", sql.Named("number", number))
-		if err != nil { // Если ошибка удаления строки -
-			return err // возвращаем ошибку.
-		}
-	}
 	return nil
 }
