@@ -1,0 +1,10 @@
+# напихал, чтоб можно было лазить в БД
+schema2.sql
+sqlite3_rsync.exe
+sqlite3_analyzer.exe
+sqldiff.exe
+sqlite3.exe
+tracker_orig.db
+
+# шпаргалка по переменным, константам и таблице в БД
+vars_consts_and_tables.txt

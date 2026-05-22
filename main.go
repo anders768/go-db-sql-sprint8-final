@@ -3,18 +3,19 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"log"
 	"time"
 
 	_ "modernc.org/sqlite"
 )
 
-const (
+const ( // константы со статусами посылок
 	ParcelStatusRegistered = "registered"
 	ParcelStatusSent       = "sent"
 	ParcelStatusDelivered  = "delivered"
 )
 
-type Parcel struct {
+type Parcel struct { // структура, описывающая посылку
 	Number    int
 	Client    int
 	Status    string
@@ -23,11 +24,12 @@ type Parcel struct {
 }
 
 type ParcelService struct {
-	store ParcelStore
+	store ParcelStore // Поле store содержит ParcelStore (объявлена в parcel.go),
+	// которая содержит единственное поле db - соединение с базой данных.
 }
 
-func NewParcelService(store ParcelStore) ParcelService {
-	return ParcelService{store: store}
+func NewParcelService(store ParcelStore) ParcelService { // функция-конструктор
+	return ParcelService{store: store} // возвращает новый экземпляр структуры ParcelService
 }
 
 func (s ParcelService) Register(client int, address string) (Parcel, error) {
@@ -35,7 +37,7 @@ func (s ParcelService) Register(client int, address string) (Parcel, error) {
 		Client:    client,
 		Status:    ParcelStatusRegistered,
 		Address:   address,
-		CreatedAt: time.Now().UTC().Format(time.RFC3339),
+		CreatedAt: time.Now().UTC().Format(time.RFC3339), // время - строка вида YYYY-MM-DDTHH:MM:SSZ
 	}
 
 	id, err := s.store.Add(parcel)
@@ -80,7 +82,7 @@ func (s ParcelService) NextStatus(number int) error {
 	case ParcelStatusSent:
 		nextStatus = ParcelStatusDelivered
 	case ParcelStatusDelivered:
-		return nil
+		return nil // после "доставлено" нет следующего статуса
 	}
 
 	fmt.Printf("У посылки № %d новый статус: %s\n", number, nextStatus)
@@ -98,8 +100,14 @@ func (s ParcelService) Delete(number int) error {
 
 func main() {
 	// настройте подключение к БД
+	db, err := sql.Open("sqlite", "tracker.db")
+	if err != nil { // Если БД не подключается -
+		log.Fatal(err) // в лог, и конец.
+	}
+	defer db.Close()
 
-	store := // создайте объект ParcelStore функцией NewParcelStore
+	// создайте объект ParcelStore функцией NewParcelStore
+	store := NewParcelStore(db)
 	service := NewParcelService(store)
 
 	// регистрация посылки
